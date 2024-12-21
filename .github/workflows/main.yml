@@ -1,0 +1,103 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
+  IMAGE: ${{ secrets.IMAGE_NAME }}
+
+jobs:
+  setup-and-deploy:
+    name: Setup and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Authentication to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Check if GKE cluster exists
+      id: check-cluster
+      run: |
+        if gcloud container clusters list --zone ${{ secrets.GCP_ZONE }} | grep -q "${{ secrets.GKE_CLUSTER }}"; then
+          echo "::set-output name=exists::true"
+        else
+          echo "::set-output name=exists::false"
+        fi
+
+    - name: Create GKE Cluster if not exists
+      if: steps.check-cluster.outputs.exists == 'false'
+      run: |
+        gcloud container clusters create ${{ secrets.GKE_CLUSTER }} \
+          --zone ${{ secrets.GCP_ZONE }} \
+          --machine-type=e2-medium \
+          --num-nodes=1
+
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER }} \
+        --zone ${{ secrets.GCP_ZONE }}
+
+    - name: Build Docker image
+      run: |
+        docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }} .
+
+    - name: Configure Docker to use gcloud
+      run: |
+        gcloud auth configure-docker gcr.io
+
+    - name: Push Docker image to GCR
+      run: |
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }}
+
+    - name: Check if deployment exists
+      id: check-deployment
+      run: |
+        if kubectl get deployment ${{ env.DEPLOYMENT_NAME }} 2>/dev/null; then
+          echo "::set-output name=exists::true"
+        else
+          echo "::set-output name=exists::false"
+        fi
+
+    - name: Create deployment if not exists
+      if: steps.check-deployment.outputs.exists == 'false'
+      run: |
+        kubectl create deployment ${{ env.DEPLOYMENT_NAME }} \
+          --image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }}
+
+    - name: Update existing deployment
+      if: steps.check-deployment.outputs.exists == 'true'
+      run: |
+        kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
+          ${{ env.DEPLOYMENT_NAME }}=gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }}
+
+    - name: Check if service exists
+      id: check-service
+      run: |
+        if kubectl get service ${{ env.DEPLOYMENT_NAME }}-service 2>/dev/null; then
+          echo "::set-output name=exists::true"
+        else
+          echo "::set-output name=exists::false"
+        fi
+
+    - name: Expose deployment if service doesn't exist
+      if: steps.check-service.outputs.exists == 'false'
+      run: |
+        kubectl expose deployment ${{ env.DEPLOYMENT_NAME }} \
+          --name=${{ env.DEPLOYMENT_NAME }}-service \
+          --type=LoadBalancer \
+          --port=80 \
+          --target-port=8080

@@ -1,0 +1,7 @@
+billing_account_id = "01CF7C-822F8F-31E1B9"
+region            = "australia-southeast1"
+project_id        = "baconchat-work-portfolio"
+vpc_name          = "bcwp-vpc"
+subnet_name       = "bcwp-subnet"
+cluster_name      = "bcwp-cluster"
+node_pool_name   = "bcwp-node-pool"
