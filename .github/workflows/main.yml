@@ -56,7 +56,7 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -f ./docker/WebApp/Dockerfile -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }} 
+        docker build -f ./docker/WebApp/Dockerfile -t gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
 
     - name: Configure Docker to use gcloud
       run: |
@@ -64,7 +64,7 @@ jobs:
 
     - name: Push Docker image to GCR
       run: |
-        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }}
+        docker push gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
 
     - name: Check if deployment exists
       id: check-deployment
