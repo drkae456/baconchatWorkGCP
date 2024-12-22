@@ -22,7 +22,7 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
-    - name: Authentication to Google Cloud
+    - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
@@ -36,13 +36,13 @@ jobs:
       id: check-cluster
       run: |
         if gcloud container clusters list --zone ${{ secrets.GCP_ZONE }} | grep -q "${{ secrets.GKE_CLUSTER }}"; then
-          echo "::set-output name=exists::true"
+          echo "exists=true" >> $GITHUB_ENV
         else
-          echo "::set-output name=exists::false"
+          echo "exists=false" >> $GITHUB_ENV
         fi
 
     - name: Create GKE Cluster if not exists
-      if: steps.check-cluster.outputs.exists == 'false'
+      if: env.exists == 'false'
       run: |
         gcloud container clusters create ${{ secrets.GKE_CLUSTER }} \
           --zone ${{ secrets.GCP_ZONE }} \
@@ -52,11 +52,11 @@ jobs:
     - name: Get GKE credentials
       run: |
         gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER }} \
-        --zone ${{ secrets.GCP_ZONE }}
+          --zone ${{ secrets.GCP_ZONE }}
 
     - name: Build Docker image
       run: |
-        docker build -f ./docker/WebApp/Dockerfile -t gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
+        docker build -f ./docker/WebApp/Dockerfile -t gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest .
 
     - name: Configure Docker to use gcloud
       run: |
@@ -70,34 +70,34 @@ jobs:
       id: check-deployment
       run: |
         if kubectl get deployment ${{ env.DEPLOYMENT_NAME }} 2>/dev/null; then
-          echo "::set-output name=exists::true"
+          echo "deployment_exists=true" >> $GITHUB_ENV
         else
-          echo "::set-output name=exists::false"
+          echo "deployment_exists=false" >> $GITHUB_ENV
         fi
 
     - name: Create deployment if not exists
-      if: steps.check-deployment.outputs.exists == 'false'
+      if: env.deployment_exists == 'false'
       run: |
         kubectl create deployment ${{ env.DEPLOYMENT_NAME }} \
-          --image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }}
+          --image=gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
 
     - name: Update existing deployment
-      if: steps.check-deployment.outputs.exists == 'true'
+      if: env.deployment_exists == 'true'
       run: |
         kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
-          ${{ env.DEPLOYMENT_NAME }}=gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE }}:${{ github.sha }}
+          ${{ env.DEPLOYMENT_NAME }}=gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
 
     - name: Check if service exists
       id: check-service
       run: |
         if kubectl get service ${{ env.DEPLOYMENT_NAME }}-service 2>/dev/null; then
-          echo "::set-output name=exists::true"
+          echo "service_exists=true" >> $GITHUB_ENV
         else
-          echo "::set-output name=exists::false"
+          echo "service_exists=false" >> $GITHUB_ENV
         fi
 
     - name: Expose deployment if service doesn't exist
-      if: steps.check-service.outputs.exists == 'false'
+      if: env.service_exists == 'false'
       run: |
         kubectl expose deployment ${{ env.DEPLOYMENT_NAME }} \
           --name=${{ env.DEPLOYMENT_NAME }}-service \
