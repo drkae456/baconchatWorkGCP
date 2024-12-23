@@ -1,20 +1,18 @@
 name: Deploy to GCP
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
 env:
   DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
   IMAGE: ${{ secrets.IMAGE_NAME }}
-
 jobs:
   setup-and-deploy:
     name: Setup and Deploy
     runs-on: ubuntu-latest
-
+    outputs:
+      webapp_url: ${{ steps.get-webapp-url.outputs.url }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -41,7 +39,6 @@ jobs:
       run: |
         echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $GITHUB_ENV
         gcloud components install gke-gcloud-auth-plugin
-
 
     - name: Check if GKE cluster exists
       id: check-cluster
@@ -120,3 +117,20 @@ jobs:
           --type=LoadBalancer \
           --port=80 \
           --target-port=8080
+
+    - name: Wait for external IP
+      run: |
+        echo "Waiting for external IP to be assigned..."
+        while [ -z $(kubectl get service ${{ env.DEPLOYMENT_NAME }}-service --template="{{range .status.loadBalancer.ingress}}{{.ip}}{{end}}") ]; do
+          sleep 10
+        done
+
+    - name: Get WebApp URL
+      id: get-webapp-url
+      run: |
+        EXTERNAL_IP=$(kubectl get service ${{ env.DEPLOYMENT_NAME }}-service --template="{{range .status.loadBalancer.ingress}}{{.ip}}{{end}}")
+        echo "url=http://${EXTERNAL_IP}" >> "$GITHUB_OUTPUT"
+
+    - name: Display WebApp URL
+      run: |
+        echo "Your webapp is now available at: ${{ steps.get-webapp-url.outputs.url }}"
