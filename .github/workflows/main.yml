@@ -32,6 +32,17 @@ jobs:
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+    - name: Install kubectl
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y kubectl
+        
+    - name: Configure kubectl authentication
+      run: |
+        echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $GITHUB_ENV
+        gcloud components install gke-gcloud-auth-plugin
+
+
     - name: Check if GKE cluster exists
       id: check-cluster
       run: |
@@ -66,6 +77,11 @@ jobs:
       run: |
         docker push gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
 
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER }} \
+          --zone ${{ secrets.GCP_ZONE }}
+
     - name: Check if deployment exists
       id: check-deployment
       run: |
@@ -79,13 +95,13 @@ jobs:
       if: env.deployment_exists == 'false'
       run: |
         kubectl create deployment ${{ env.DEPLOYMENT_NAME }} \
-          --image=gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
+          --image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
 
     - name: Update existing deployment
       if: env.deployment_exists == 'true'
       run: |
         kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
-          ${{ env.DEPLOYMENT_NAME }}=gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
+          ${{ env.DEPLOYMENT_NAME }}=gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
 
     - name: Check if service exists
       id: check-service
