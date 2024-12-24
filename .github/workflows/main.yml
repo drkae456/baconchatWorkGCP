@@ -119,4 +119,4 @@ jobs:
           --name=${{ env.DEPLOYMENT_NAME }}-service \
           --type=LoadBalancer \
           --port=80 \
-          --target-port=8080
+          --target-port=80
