@@ -7,20 +7,30 @@ on:
     branches: [ main ]
 
 env:
+env:
   DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
   IMAGE: ${{ secrets.IMAGE_NAME }}
+  TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+  TF_VAR_billing_account_id: ${{ secrets.BILLING_ACCOUNT_ID }}
+  TF_VAR_region: ${{ secrets.GCP_REGION }}
+  TF_VAR_vpc_name: ${{ secrets.VPC_NAME }}
+  TF_VAR_subnet_name: ${{ secrets.SUBNET_NAME }}
+  TF_VAR_cluster_name: ${{ secrets.CLUSTER_NAME }}
+  TF_VAR_node_pool_name: ${{ secrets.NODE_POOL_NAME }}
 
 jobs:
-  setup-and-deploy:
-    name: Setup and Deploy
+  terraform-and-deploy:
+    name: Setup Infrastructure and Deploy
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: 1.0.0
 
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v1
@@ -32,6 +42,81 @@ jobs:
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+    - name: Initialize Terraform
+      run: terraform init
+
+    - name: Check if Project Exists
+      id: check-project
+      run: |
+        if gcloud projects describe ${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+          echo "project_exists=true" >> $GITHUB_ENV
+        else
+          echo "project_exists=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create Project if not exists
+      if: env.project_exists == 'false'
+      run: terraform apply -target=google_project.project -auto-approve
+
+    - name: Enable APIs if needed
+      run: terraform apply -target=google_project_service.services -auto-approve
+
+    - name: Check if VPC Exists
+      id: check-vpc
+      run: |
+        if gcloud compute networks describe ${{ env.TF_VAR_vpc_name }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+          echo "vpc_exists=true" >> $GITHUB_ENV
+        else
+          echo "vpc_exists=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create VPC if not exists
+      if: env.vpc_exists == 'false'
+      run: terraform apply -target=google_compute_network.vpc -auto-approve
+
+    - name: Check if Subnet Exists
+      id: check-subnet
+      run: |
+        if gcloud compute networks subnets describe ${{ env.TF_VAR_subnet_name }} --region=${{ env.TF_VAR_region }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+          echo "subnet_exists=true" >> $GITHUB_ENV
+        else
+          echo "subnet_exists=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create Subnet if not exists
+      if: env.subnet_exists == 'false'
+      run: terraform apply -target=google_compute_subnetwork.subnet -auto-approve
+
+    - name: Check if GKE Cluster Exists
+      id: check-cluster
+      run: |
+        if gcloud container clusters describe ${{ env.TF_VAR_cluster_name }} --region=${{ env.TF_VAR_region }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+          echo "cluster_exists=true" >> $GITHUB_ENV
+        else
+          echo "cluster_exists=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create GKE Cluster if not exists
+      if: env.cluster_exists == 'false'
+      run: terraform apply -target=google_container_cluster.primary -auto-approve
+
+    - name: Check if Node Pool Exists
+      id: check-nodepool
+      run: |
+        if gcloud container node-pools describe ${{ env.TF_VAR_node_pool_name }} --cluster=${{ env.TF_VAR_cluster_name }} --region=${{ env.TF_VAR_region }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+          echo "nodepool_exists=true" >> $GITHUB_ENV
+        else
+          echo "nodepool_exists=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create Node Pool if not exists
+      if: env.nodepool_exists == 'false'
+      run: terraform apply -target=google_container_node_pool.primary_nodes -auto-approve
+
+    # Application Deployment Steps
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
     - name: Install kubectl
       run: |
         sudo apt-get update
@@ -42,28 +127,10 @@ jobs:
         echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $GITHUB_ENV
         gcloud components install gke-gcloud-auth-plugin
 
-
-    - name: Check if GKE cluster exists
-      id: check-cluster
-      run: |
-        if gcloud container clusters list --zone ${{ secrets.GCP_ZONE }} | grep -q "${{ secrets.GKE_CLUSTER }}"; then
-          echo "exists=true" >> $GITHUB_ENV
-        else
-          echo "exists=false" >> $GITHUB_ENV
-        fi
-
-    - name: Create GKE Cluster if not exists
-      if: env.exists == 'false'
-      run: |
-        gcloud container clusters create ${{ secrets.GKE_CLUSTER }} \
-          --zone ${{ secrets.GCP_ZONE }} \
-          --machine-type=e2-medium \
-          --num-nodes=1
-
     - name: Get GKE credentials
       run: |
-        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER }} \
-          --zone ${{ secrets.GCP_ZONE }}
+        gcloud container clusters get-credentials ${{ env.TF_VAR_cluster_name }} \
+          --region=${{ env.TF_VAR_region }}
 
     - name: Build Docker image
       run: |
@@ -76,11 +143,6 @@ jobs:
     - name: Push Docker image to GCR
       run: |
         docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.DEPLOYMENT_NAME }}:latest
-
-    - name: Get GKE credentials
-      run: |
-        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER }} \
-          --zone ${{ secrets.GCP_ZONE }}
 
     - name: Check if deployment exists
       id: check-deployment

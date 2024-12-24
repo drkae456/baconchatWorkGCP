@@ -1,9 +1,12 @@
 version: "3.8"
 services:
   webapp:
-    image: baconchatportfolio
+    build:
+      context: .
+      dockerfile: docker/WebApp/Dockerfile
+    image: gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
     ports:
       - "80:80"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
     command: npm run start
