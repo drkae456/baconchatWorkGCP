@@ -54,9 +54,7 @@ jobs:
           echo "project_exists=false" >> $GITHUB_ENV
         fi
 
-    - name: Create Project if not exists
-      if: env.project_exists == 'false'
-      run: terraform apply -target=google_project.project -auto-approve
+
 
     - name: Enable APIs if needed
       run: terraform apply -target=google_project_service.services -auto-approve
