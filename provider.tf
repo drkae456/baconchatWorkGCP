@@ -5,7 +5,7 @@ provider "google" {
 
 # Create the project
 resource "google_project" "project" {
-  project_name    =   var.project_name
+  name    =   var.project_name
   project_id      = var.project_id
   billing_account = var.billing_account_id
 }
