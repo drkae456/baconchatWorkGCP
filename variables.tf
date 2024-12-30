@@ -1,7 +1,4 @@
-variable "project_name" {
-  description = "The name of the GCP project (must be unique)"
-  type        = string
-}
+
 
 variable "project_id" {
   description = "The ID of the GCP project (must be unique)"
