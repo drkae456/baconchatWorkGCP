@@ -16,7 +16,6 @@ env:
   TF_VAR_subnet_name: ${{ secrets.SUBNET_NAME }}
   TF_VAR_cluster_name: ${{ secrets.CLUSTER_NAME }}
   TF_VAR_node_pool_name: ${{ secrets.NODE_POOL_NAME }}
-  TF_VAR_project_name: ${{ secrets.project_name }}
 
 jobs:
   terraform-and-deploy:
@@ -45,17 +44,8 @@ jobs:
     - name: Initialize Terraform
       run: terraform init
 
-    - name: Check if Project Exists
-      id: check-project
-      run: |
-        if gcloud projects describe ${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
-          echo "project_exists=true" >> $GITHUB_ENV
-        else
-          echo "project_exists=false" >> $GITHUB_ENV
-        fi
-
-
-
+    - name: Enable APIs if needed
+      run: terraform apply -target=google_project_service.services -auto-approve
     - name: Enable APIs if needed
       run: terraform apply -target=google_project_service.services -auto-approve
 
