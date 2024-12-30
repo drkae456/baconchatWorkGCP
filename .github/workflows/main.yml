@@ -16,6 +16,7 @@ env:
   TF_VAR_subnet_name: ${{ secrets.SUBNET_NAME }}
   TF_VAR_cluster_name: ${{ secrets.CLUSTER_NAME }}
   TF_VAR_node_pool_name: ${{ secrets.NODE_POOL_NAME }}
+  TF_VAR_project_name: ${{ secrets.project_name }}
 
 jobs:
   terraform-and-deploy:
