@@ -1,9 +1,8 @@
 # Create GKE cluster
 resource "google_container_cluster" "primary" {
-  provider = google.project
   name     = var.cluster_name
   location = var.region
-  project  = google_project.project.project_id
+  project  = var.project_id
 
   remove_default_node_pool = true
   initial_node_count       = 1
@@ -16,11 +15,10 @@ resource "google_container_cluster" "primary" {
 
 # Create node pool
 resource "google_container_node_pool" "primary_nodes" {
-  provider   = google.project
   name       = var.node_pool_name
   location   = var.region
   cluster    = google_container_cluster.primary.name
-  project    = google_project.project.project_id
+  project    = var.project_id
   node_count = 1
 
   node_config {
