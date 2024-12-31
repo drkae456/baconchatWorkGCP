@@ -47,3 +47,9 @@ variable "gcp_bucket_name" {
   description = "The name of the GCS bucket for Terraform state."
   type        = string
 }
+
+variable "service_account_key" {
+  description = "Google Cloud Service Account key content"
+  type        = string
+  sensitive   = true
+}
