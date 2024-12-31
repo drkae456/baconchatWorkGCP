@@ -1,4 +1,4 @@
- Data source to check if VPC exists
+# Check if VPC exists
 data "google_compute_network" "existing_vpc" {
   name    = var.vpc_name
   project = var.project_id
@@ -13,7 +13,7 @@ resource "google_compute_network" "vpc" {
   depends_on             = [google_project_service.services]
 }
 
-# Data source to check if subnet exists
+# Check if subnet exists
 data "google_compute_subnetwork" "existing_subnet" {
   name     = var.subnet_name
   region   = var.region
