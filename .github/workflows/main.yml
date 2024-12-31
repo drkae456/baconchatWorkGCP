@@ -33,8 +33,7 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Configure Docker to use gcloud as a credential helper
-        run: |
-        echo '${{ secrets.GCP_SA_KEY }}' | docker login -u _json_key --password-stdin gcr.io
+        run: echo '${{ secrets.GCP_SA_KEY }}' | docker login -u _json_key --password-stdin gcr.io
       
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
