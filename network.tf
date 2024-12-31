@@ -9,6 +9,7 @@ resource "google_compute_network" "vpc" {
 
 # Create subnet
 resource "google_compute_subnetwork" "subnet" {
+  provider      = google
   name          = var.subnet_name
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
