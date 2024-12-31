@@ -108,16 +108,3 @@ temp/
 # Stryker Mutation Testing
 reports/mutation/
 
-# Terraform files
-.terraform/
-.terraform.lock.hcl
-.terraform.tfstate.lock.info
-terraform.tfstate
-terraform.tfstate.backup
-
-# Allow main Terraform file
-!main.tf
-
-# Allow other specific Terraform files (optional, add others if needed)
-!*.tf
-!.tfvars

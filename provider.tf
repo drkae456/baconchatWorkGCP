@@ -1,36 +1,27 @@
-# First, create a provider without project specified for project creation
-provider "google" {
-  project = var.project_id
-  region  = var.region
-}
+erraform {
+  required_version = ">= 1.0.0"
 
-# Create provider with project alias
-provider "google" {
-  alias   = "project"
-  project = var.project_id
-  region  = var.region
-}
-
-terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
       version = "~> 4.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
   }
 }
 
-# Enable required APIs
-resource "google_project_service" "services" {
-  for_each = toset([
-    "compute.googleapis.com",
-    "container.googleapis.com",
-    "containerregistry.googleapis.com"
-  ])
-
+provider "google" {
   project = var.project_id
-  service = each.key
-
-  disable_dependent_services = true
-  disable_on_destroy        = false
+  region  = var.region
 }
+
+provider "kubernetes" {
+  host                   = google_container_cluster.primary.endpoint
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth.0.cluster_ca_certificate)
+}
+
+data "google_client_config" "default" {}

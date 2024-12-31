@@ -1,153 +1,76 @@
-name: Deploy to GCP
+name: GCP Deployment
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
-  IMAGE: ${{ secrets.IMAGE_NAME }}
-  TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
-  TF_VAR_billing_account_id: ${{ secrets.BILLING_ACCOUNT_ID }}
-  TF_VAR_region: ${{ secrets.GCP_REGION }}
-  TF_VAR_vpc_name: ${{ secrets.VPC_NAME }}
-  TF_VAR_subnet_name: ${{ secrets.SUBNET_NAME }}
-  TF_VAR_cluster_name: ${{ secrets.CLUSTER_NAME }}
-  TF_VAR_node_pool_name: ${{ secrets.NODE_POOL_NAME }}
+    branches:
+      - main
 
 jobs:
-  terraform-and-deploy:
-    name: Setup Infrastructure and Deploy
+  deploy:
     runs-on: ubuntu-latest
 
+    env:
+      DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
+      IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      BILLING_ACCOUNT_ID: ${{ secrets.BILLING_ACCOUNT_ID }}
+      REGION: ${{ secrets.GCP_REGION }}
+      VPC_NAME: ${{ secrets.VPC_NAME }}
+      SUBNET_NAME: ${{ secrets.SUBNET_NAME }}
+      CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
+      NODE_POOL_NAME: ${{ secrets.NODE_POOL_NAME }}
+      SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SA_KEY }}
+      GCP_BUCKET: ${{ secrets.GCP_BUCKET }}
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
-      with:
-        terraform_version: 1.0.0
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          service_account_key: ${{ env.SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.PROJECT_ID }}
 
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Configure Docker to use gcloud as a credential helper
+        run: |
+          echo ${{ env.SERVICE_ACCOUNT_KEY }} | docker login -u _json_key --password-stdin https://gcr.io
 
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.5.7'
 
-    - name: Initialize Terraform
-      run: terraform init
-    
-    - name: Terraform Validate
-      run: terraform validate
+      - name: Initialize Terraform
+        run: terraform init
 
-    - name: Enable APIs if needed
-      run: terraform apply -target=google_project_service.services -auto-approve
-    
-    - name: Create VPC
-      run: terraform apply -target=google_compute_network.vpc -auto-approve
+      - name: Validate Terraform configuration
+        run: terraform validate
 
-    - name: Create Subnet 
-      run: terraform apply -target=google_compute_subnetwork.subnet -auto-approve
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
 
-    - name: Check if GKE Cluster Exists
-      id: check-cluster
-      run: |
-        if gcloud container clusters describe ${{ env.TF_VAR_cluster_name }} --region=${{ env.TF_VAR_region }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
-          echo "cluster_exists=true" >> $GITHUB_ENV
-        else
-          echo "cluster_exists=false" >> $GITHUB_ENV
-        fi
+      - name: Terraform Apply
+        if: success() && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
 
-    - name: Create GKE Cluster if not exists
-      if: env.cluster_exists == 'false'
-      run: terraform apply -target=google_container_cluster.primary -auto-approve
+      - name: Build Docker Image
+        run: docker build -t ${{ env.IMAGE_NAME }} .
 
-    - name: Check if Node Pool Exists
-      id: check-nodepool
-      run: |
-        if gcloud container node-pools describe ${{ env.TF_VAR_node_pool_name }} --cluster=${{ env.TF_VAR_cluster_name }} --region=${{ env.TF_VAR_region }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
-          echo "nodepool_exists=true" >> $GITHUB_ENV
-        else
-          echo "nodepool_exists=false" >> $GITHUB_ENV
-        fi
+      - name: Push Docker Image to Google Container Registry
+        run: docker push ${{ env.IMAGE_NAME }}
 
-    - name: Create Node Pool if not exists
-      if: env.nodepool_exists == 'false'
-      run: terraform apply -target=google_container_node_pool.primary_nodes -auto-approve
+      - name: Set up kubectl
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          service_account_key: ${{ env.SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.PROJECT_ID }}
+          export_default_credentials: true
 
-    # Application Deployment Steps
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
 
-    - name: Install kubectl
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y kubectl
-        
-    - name: Configure kubectl authentication
-      run: |
-        echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $GITHUB_ENV
-        gcloud components install gke-gcloud-auth-plugin
-
-    - name: Get GKE credentials
-      run: |
-        gcloud container clusters get-credentials ${{ env.TF_VAR_cluster_name }} \
-          --region=${{ env.TF_VAR_region }}
-
-    - name: Build Docker image
-      run: |
-        docker build -f ./docker/WebApp/Dockerfile -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.DEPLOYMENT_NAME }}:latest .
-
-    - name: Configure Docker to use gcloud
-      run: |
-        gcloud auth configure-docker gcr.io
-
-    - name: Push Docker image to GCR
-      run: |
-        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.DEPLOYMENT_NAME }}:latest
-
-    - name: Check if deployment exists
-      id: check-deployment
-      run: |
-        if kubectl get deployment ${{ env.DEPLOYMENT_NAME }} 2>/dev/null; then
-          echo "deployment_exists=true" >> $GITHUB_ENV
-        else
-          echo "deployment_exists=false" >> $GITHUB_ENV
-        fi
-
-    - name: Create deployment if not exists
-      if: env.deployment_exists == 'false'
-      run: |
-        kubectl create deployment ${{ env.DEPLOYMENT_NAME }} \
-          --image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
-
-    - name: Update existing deployment
-      if: env.deployment_exists == 'true'
-      run: |
-        kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
-          ${{ env.DEPLOYMENT_NAME }}=gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
-
-    - name: Check if service exists
-      id: check-service
-      run: |
-        if kubectl get service ${{ env.DEPLOYMENT_NAME }}-service 2>/dev/null; then
-          echo "service_exists=true" >> $GITHUB_ENV
-        else
-          echo "service_exists=false" >> $GITHUB_ENV
-        fi
-
-    - name: Expose deployment if service doesn't exist
-      if: env.service_exists == 'false'
-      run: |
-        kubectl expose deployment ${{ env.DEPLOYMENT_NAME }} \
-          --name=${{ env.DEPLOYMENT_NAME }}-service \
-          --type=LoadBalancer \
-          --port=80 \
-          --target-port=80
+      - name: Deploy to Kubernetes
+        run: kubectl apply -f k8s/
