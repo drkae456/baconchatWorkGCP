@@ -4,6 +4,13 @@ provider "google" {
   region  = var.region
 }
 
+# Create provider with project alias
+provider "google" {
+  alias   = "project"
+  project = var.project_id
+  region  = var.region
+}
+
 terraform {
   required_providers {
     google = {
