@@ -50,30 +50,10 @@ jobs:
     - name: Enable APIs if needed
       run: terraform apply -target=google_project_service.services -auto-approve
     
-    - name: Check if VPC Exists
-      id: check-vpc
-      run: |
-        if gcloud compute networks describe ${{ env.TF_VAR_vpc_name }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
-          echo "vpc_exists=true" >> $GITHUB_ENV
-        else
-          echo "vpc_exists=false" >> $GITHUB_ENV
-        fi
-
-    - name: Create VPC if not exists
-      if: env.vpc_exists == 'false'
+    - name: Create VPC
       run: terraform apply -target=google_compute_network.vpc -auto-approve
 
-    - name: Check if Subnet Exists
-      id: check-subnet
-      run: |
-        if gcloud compute networks subnets describe ${{ env.TF_VAR_subnet_name }} --region=${{ env.TF_VAR_region }} --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
-          echo "subnet_exists=true" >> $GITHUB_ENV
-        else
-          echo "subnet_exists=false" >> $GITHUB_ENV
-        fi
-
-    - name: Create Subnet if not exists
-      if: env.subnet_exists == 'false'
+    - name: Create Subnet 
       run: terraform apply -target=google_compute_subnetwork.subnet -auto-approve
 
     - name: Check if GKE Cluster Exists
