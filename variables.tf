@@ -1,7 +1,5 @@
-
-
 variable "project_id" {
-  description = "The ID of the GCP project (must be unique)"
+  description = "The ID of the existing GCP project"
   type        = string
 }
 
