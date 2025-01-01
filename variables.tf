@@ -46,5 +46,4 @@ variable "deployment_name" {
 variable "image_name" {
   description = "Docker image name"
   type        = string
-  default     = "gcr.io/${var.project_id}/baconchatportfolio:latest"
 }
