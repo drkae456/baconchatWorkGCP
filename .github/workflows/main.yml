@@ -62,9 +62,9 @@ jobs:
           echo '${{ secrets.GCP_SA_KEY }}' > google-credentials.json
           export GOOGLE_APPLICATION_CREDENTIALS="$GITHUB_WORKSPACE/google-credentials.json"
 
-      # Terraform Init
+      # Terraform Init without backend
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend=false
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/google-credentials.json
 
