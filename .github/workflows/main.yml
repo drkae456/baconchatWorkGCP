@@ -21,6 +21,7 @@ jobs:
       NODE_POOL_NAME: ${{ secrets.NODE_POOL_NAME }}
       SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SA_KEY }}
       GCP_BUCKET: ${{ secrets.GCP_BUCKET }}
+      GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
 
     steps:
       - name: Checkout Repository
@@ -31,6 +32,7 @@ jobs:
         with:
           service_account_key: ${{ env.SERVICE_ACCOUNT_KEY }}
           project_id: ${{ env.PROJECT_ID }}
+          export_default_credentials: true
 
       - name: Configure Docker to use gcloud as a credential helper
         run: echo '${{ secrets.GCP_SA_KEY }}' | docker login -u _json_key --password-stdin gcr.io
@@ -41,7 +43,14 @@ jobs:
           terraform_version: '1.5.7'
 
       - name: Initialize Terraform
-        run: terraform init
+        run: |
+          echo '${{ secrets.GCP_SA_KEY }}' > gcp-key.json
+          export GOOGLE_APPLICATION_CREDENTIALS="$GITHUB_WORKSPACE/gcp-key.json"
+          terraform init
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f gcp-key.json
 
       - name: Validate Terraform configuration
         run: terraform validate
