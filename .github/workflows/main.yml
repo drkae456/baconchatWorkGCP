@@ -1,85 +1,73 @@
-name: GCP Deployment
+name: Deploy to GCP
 
 on:
   push:
     branches:
       - main
- 
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
 
-    env: 
-      DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
-      IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      BILLING_ACCOUNT_ID: ${{ secrets.BILLING_ACCOUNT_ID }}
-      REGION: ${{ secrets.GCP_REGION }}
-      VPC_NAME: ${{ secrets.VPC_NAME }}
-      SUBNET_NAME: ${{ secrets.SUBNET_NAME }}
-      CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
-      NODE_POOL_NAME: ${{ secrets.NODE_POOL_NAME }}
-      SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SA_KEY }}
-      GCP_BUCKET: ${{ secrets.GCP_BUCKET }}
-      GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+    env:
+      # Terraform variables passed via GitHub Secrets
+      TF_VAR_project_id: ${{ secrets.TF_VAR_PROJECT_ID }}
+      TF_VAR_region: ${{ secrets.TF_VAR_REGION }}
+      TF_VAR_gcp_bucket_name: ${{ secrets.TF_VAR_GCP_BUCKET_NAME }}
+      TF_VAR_vpc_name: ${{ secrets.TF_VAR_VPC_NAME }}
+      TF_VAR_subnet_name: ${{ secrets.TF_VAR_SUBNET_NAME }}
+      TF_VAR_cluster_name: ${{ secrets.TF_VAR_CLUSTER_NAME }}
+      TF_VAR_node_pool_name: ${{ secrets.TF_VAR_NODE_POOL_NAME }}
+      TF_VAR_deployment_name: ${{ secrets.TF_VAR_DEPLOYMENT_NAME }}
+      TF_VAR_image_name: ${{ secrets.TF_VAR_IMAGE_NAME }}
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1.1.1
+      # Set up Cloud SDK
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
         with:
-          service_account_key: ${{ env.SERVICE_ACCOUNT_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
-          export_default_credentials: true
+          version: 'latest'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Configure Docker to use gcloud as a credential helper
-        run: echo '${{ secrets.GCP_SA_KEY }}' | docker login -u _json_key --password-stdin gcr.io
-      
-      - name: Set up Terraform
+      # Authenticate Docker to GCR
+      - name: Authenticate Docker to GCR
+        run: |
+          echo ${{ secrets.GCP_SA_KEY }} | docker login -u _json_key --password-stdin https://gcr.io
+
+      # Build Docker image
+      # Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest -f docker/WebApp/Dockerfile .
+
+      # Push Docker image to GCR
+      - name: Push Docker image to GCR
+        run: |
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
+
+      # Set up Terraform
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: '1.5.7'
+          terraform_version: '1.3.0'
 
-      - name: Initialize Terraform
-        run: |
-          echo '${{ secrets.GCP_SA_KEY }}' > gcp-key.json
-          export GOOGLE_APPLICATION_CREDENTIALS="$GITHUB_WORKSPACE/gcp-key.json"
-          terraform init
+      # Terraform Init
+      - name: Terraform Init
+        run: terraform init
 
-      - name: Clean up credentials
-        if: always()
-        run: rm -f gcp-key.json
-
-      - name: Validate Terraform configuration
+      # Terraform Validate
+      - name: Terraform Validate
         run: terraform validate
 
+      # Terraform Plan
       - name: Terraform Plan
-        id: plan
         run: terraform plan -out=tfplan
 
-      - name: Terraform Apply
-        if: success() && github.ref == 'refs/heads/main'
+      # Terraform Apply
         run: terraform apply -auto-approve tfplan
-
-      - name: Build Docker Image
-        run: docker build -t ${{ env.IMAGE_NAME }} -f docker/WebApp/Dockerfile .
-
-      - name: Push Docker Image to Google Container Registry
-        run: docker push ${{ env.IMAGE_NAME }}
-
-      - name: Set up kubectl
-        uses: google-github-actions/setup-gcloud@v1.1.1
-        with:
-          service_account_key: ${{ env.SERVICE_ACCOUNT_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
-          install_components: 'gke-gcloud-auth-plugin'
-
-      - name: Configure kubectl
-        run: |
-          gcloud components install gke-gcloud-auth-plugin
-          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
-
-      - name: Deploy to Kubernetes
-        run: kubectl apply -f k8s/

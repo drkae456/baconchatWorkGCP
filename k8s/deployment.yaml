@@ -14,9 +14,9 @@ spec:
     spec:
       containers:
       - name: webapp
-        image: gcr.io/baconchat-work-portfolio1996/baconchatportfolio:latest
+        image: gcr.io/bacon-chat-portfolio-pipeline/baconchatportfolio:latest
         ports:
         - containerPort: 80
         env:
         - name: NODE_ENV
-          value: "production" 
+          value: "production"

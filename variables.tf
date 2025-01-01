@@ -9,6 +9,42 @@ variable "region" {
 }
 
 variable "gcp_bucket_name" {
-  description = "The GCP bucket name"
+  description = "The GCP bucket name for Terraform state"
   type        = string
+}
+
+variable "vpc_name" {
+  description = "Name of the VPC network"
+  type        = string
+  default     = "webapp-vpc"
+}
+
+variable "subnet_name" {
+  description = "Name of the subnet"
+  type        = string
+  default     = "webapp-subnet"
+}
+
+variable "cluster_name" {
+  description = "Name of the GKE cluster"
+  type        = string
+  default     = "webapp-cluster"
+}
+
+variable "node_pool_name" {
+  description = "Name of the node pool"
+  type        = string
+  default     = "webapp-node-pool"
+}
+
+variable "deployment_name" {
+  description = "Kubernetes deployment name"
+  type        = string
+  default     = "webapp"
+}
+
+variable "image_name" {
+  description = "Docker image name"
+  type        = string
+  default     = "gcr.io/${var.project_id}/baconchatportfolio:latest"
 }

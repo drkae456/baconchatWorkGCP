@@ -1,22 +1,11 @@
-provider "google" {
-  project     = var.project_id
-  region      = var.region
-}
-
-provider "kubernetes" {
-  host                   = google_container_cluster.primary.endpoint
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth.0.cluster_ca_certificate)
-}
-
-data "google_client_config" "default" {}
-
 resource "google_project_service" "enable_apis" {
   for_each = toset([
     "compute.googleapis.com",
     "container.googleapis.com",
     "iam.googleapis.com",
-    "containerregistry.googleapis.com"
+    "containerregistry.googleapis.com",
+    "servicemanagement.googleapis.com",
+    "cloudbuild.googleapis.com",
   ])
 
   service = each.key
@@ -75,7 +64,9 @@ resource "google_container_node_pool" "primary_nodes" {
     create_before_destroy = true
   }
 
-  depends_on = [google_container_cluster.primary]
+  depends_on = [
+    google_container_cluster.primary
+  ]
 }
 
 resource "kubernetes_deployment" "webapp" {
@@ -139,6 +130,7 @@ resource "kubernetes_service" "webapp_service" {
     }
   }
 }
+
 resource "google_storage_bucket" "terraform_state" {
   name     = var.gcp_bucket_name
   location = var.region
