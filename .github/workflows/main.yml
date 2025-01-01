@@ -12,15 +12,15 @@ jobs:
 
     env:
       # Terraform variables passed via GitHub Secrets
-      TF_VAR_PROJECT_ID: ${{ secrets.TF_VAR_PROJECT_ID }}
-      TF_VAR_REGION: ${{ secrets.TF_VAR_REGION }}
-      TF_VAR_GCP_BUCKET_NAME: ${{ secrets.TF_VAR_GCP_BUCKET_NAME }}
-      TF_VAR_VPC_NAME: ${{ secrets.TF_VAR_VPC_NAME }}
-      TF_VAR_SUBNET_NAME: ${{ secrets.TF_VAR_SUBNET_NAME }}
-      TF_VAR_CLUSTER_NAME: ${{ secrets.TF_VAR_CLUSTER_NAME }}
-      TF_VAR_NODE_POOL_NAME: ${{ secrets.TF_VAR_NODE_POOL_NAME }}
-      TF_VAR_DEPLOYMENT_NAME: ${{ secrets.TF_VAR_DEPLOYMENT_NAME }}
-      TF_VAR_IMAGE_NAME: ${{ secrets.TF_VAR_IMAGE_NAME }}
+      TF_VAR_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      TF_VAR_REGION: ${{ secrets.GCP_REGION }}
+      TF_VAR_GCP_BUCKET_NAME: ${{ secrets.GCP_BUCKET }}
+      TF_VAR_VPC_NAME: ${{ secrets.VPC_NAME }}
+      TF_VAR_SUBNET_NAME: ${{ secrets.SUBNET_NAME }}
+      TF_VAR_CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
+      TF_VAR_NODE_POOL_NAME: ${{ secrets.NODE_POOL_NAME }}
+      TF_VAR_DEPLOYMENT_NAME: ${{ secrets.DEPLOYMENT_NAME }}
+      TF_VAR_IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
 
     steps:
       # Checkout the repository
