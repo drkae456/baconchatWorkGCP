@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket = "bcp_pipeline_bucket"
+    bucket = "BCP_PIPELINE_BUCKET"
     prefix = "terraform/state"
   }
 }

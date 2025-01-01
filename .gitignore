@@ -108,3 +108,7 @@ temp/
 # Stryker Mutation Testing
 reports/mutation/
 
+# Terraform variables file
+terraform.tfvars
+
+

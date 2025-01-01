@@ -12,15 +12,15 @@ jobs:
 
     env:
       # Terraform variables passed via GitHub Secrets
-      TF_VAR_project_id: ${{ secrets.TF_VAR_PROJECT_ID }}
-      TF_VAR_region: ${{ secrets.TF_VAR_REGION }}
-      TF_VAR_gcp_bucket_name: ${{ secrets.TF_VAR_GCP_BUCKET_NAME }}
-      TF_VAR_vpc_name: ${{ secrets.TF_VAR_VPC_NAME }}
-      TF_VAR_subnet_name: ${{ secrets.TF_VAR_SUBNET_NAME }}
-      TF_VAR_cluster_name: ${{ secrets.TF_VAR_CLUSTER_NAME }}
-      TF_VAR_node_pool_name: ${{ secrets.TF_VAR_NODE_POOL_NAME }}
-      TF_VAR_deployment_name: ${{ secrets.TF_VAR_DEPLOYMENT_NAME }}
-      TF_VAR_image_name: ${{ secrets.TF_VAR_IMAGE_NAME }}
+      TF_VAR_PROJECT_ID: ${{ secrets.TF_VAR_PROJECT_ID }}
+      TF_VAR_REGION: ${{ secrets.TF_VAR_REGION }}
+      TF_VAR_GCP_BUCKET_NAME: ${{ secrets.TF_VAR_GCP_BUCKET_NAME }}
+      TF_VAR_VPC_NAME: ${{ secrets.TF_VAR_VPC_NAME }}
+      TF_VAR_SUBNET_NAME: ${{ secrets.TF_VAR_SUBNET_NAME }}
+      TF_VAR_CLUSTER_NAME: ${{ secrets.TF_VAR_CLUSTER_NAME }}
+      TF_VAR_NODE_POOL_NAME: ${{ secrets.TF_VAR_NODE_POOL_NAME }}
+      TF_VAR_DEPLOYMENT_NAME: ${{ secrets.TF_VAR_DEPLOYMENT_NAME }}
+      TF_VAR_IMAGE_NAME: ${{ secrets.TF_VAR_IMAGE_NAME }}
 
     steps:
       # Checkout the repository
@@ -40,7 +40,6 @@ jobs:
         run: |
           echo ${{ secrets.GCP_SA_KEY }} | docker login -u _json_key --password-stdin https://gcr.io
 
-      # Build Docker image
       # Build Docker image
       - name: Build Docker image
         run: |
@@ -70,4 +69,5 @@ jobs:
         run: terraform plan -out=tfplan
 
       # Terraform Apply
+      - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
