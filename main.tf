@@ -1,19 +1,26 @@
 resource "google_project_service" "enable_apis" {
   for_each = toset([
+    "cloudresourcemanager.googleapis.com",
     "compute.googleapis.com",
     "container.googleapis.com",
     "iam.googleapis.com",
     "containerregistry.googleapis.com",
     "servicemanagement.googleapis.com",
-    "cloudbuild.googleapis.com",
+    "cloudbuild.googleapis.com"
   ])
 
   service = each.key
+  disable_dependent_services = false
+  disable_on_destroy = false
 }
 
 resource "google_compute_network" "vpc" {
   name                    = var.vpc_name
   auto_create_subnetworks = false
+
+  depends_on = [
+    google_project_service.enable_apis
+  ]
 
   lifecycle {
     prevent_destroy = true
