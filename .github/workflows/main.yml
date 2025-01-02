@@ -73,6 +73,7 @@ jobs:
           TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_region: ${{ secrets.GCP_REGION }}
           TF_VAR_image_name: "gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest"
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_SA_KEY_JSON }}
 
       # Terraform Apply
       - name: Terraform Apply

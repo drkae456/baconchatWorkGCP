@@ -44,3 +44,8 @@ variable "image_name" {
   description = "Docker image name"
   type        = string
 }
+
+variable "gcp_credentials" {
+  description = "The GCP service account key in JSON format"
+  type        = string
+}
