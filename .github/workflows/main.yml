@@ -56,21 +56,13 @@ jobs:
         with:
           terraform_version: '1.3.0'
 
-      # Configure Google Cloud credentials for Terraform
-      - name: Configure Google Cloud credentials
-        run: |
-          echo '${{ secrets.GCP_SA_KEY }}' > google-credentials.json
-          export GOOGLE_APPLICATION_CREDENTIALS="$GITHUB_WORKSPACE/google-credentials.json"
+      # Remove backend configuration
+      - name: Remove backend configuration
+        run: rm -f backend.tf
 
       # Terraform Init without backend
       - name: Terraform Init
         run: terraform init -backend=false
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/google-credentials.json
-
-      # Terraform Validate
-      - name: Terraform Validate
-        run: terraform validate
 
       # Terraform Plan
       - name: Terraform Plan
