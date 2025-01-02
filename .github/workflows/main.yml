@@ -64,10 +64,6 @@ jobs:
       - name: Terraform Init
         run: terraform init -backend=false
 
-      # Terraform Plan
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-
       # Terraform Apply
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
