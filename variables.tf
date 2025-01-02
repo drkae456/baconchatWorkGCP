@@ -8,10 +8,7 @@ variable "region" {
   type        = string
 }
 
-variable "gcp_bucket_name" {
-  description = "The GCP bucket name for Terraform state"
-  type        = string
-}
+
 
 variable "vpc_name" {
   description = "Name of the VPC network"
