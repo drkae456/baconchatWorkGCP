@@ -130,22 +130,3 @@ resource "kubernetes_service" "webapp_service" {
     }
   }
 }
-
-resource "google_storage_bucket" "terraform_state" {
-  name     = var.gcp_bucket_name
-  location = var.region
-
-  lifecycle_rule {
-    action {
-      type = "Delete"
-    }
-
-    condition {
-      age = 365
-    }
-  }
-
-  versioning {
-    enabled = true
-  }
-}
