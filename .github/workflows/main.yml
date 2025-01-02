@@ -58,11 +58,7 @@ jobs:
         with:
           terraform_version: '1.3.0'
 
-      # Remove backend configuration
-      - name: Remove backend configuration
-        run: rm -f backend.tf
-
-      # Terraform Init without backend
+      # Terraform Init
       - name: Terraform Init
         run: terraform init 
 
@@ -73,7 +69,7 @@ jobs:
           TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_region: ${{ secrets.GCP_REGION }}
           TF_VAR_image_name: "gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest"
-          TF_VAR_gcp_credentials: ${{ secrets.GCP_SA_KEY_JSON }}
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_SA_KEY }}
 
       # Terraform Apply
       - name: Terraform Apply
@@ -82,3 +78,4 @@ jobs:
           TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_region: ${{ secrets.GCP_REGION }}
           TF_VAR_image_name: "gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest"
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_SA_KEY }}
