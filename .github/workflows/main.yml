@@ -62,9 +62,23 @@ jobs:
       - name: Terraform Init
         run: terraform init 
 
+      # Check if resources exist
+      - name: Check existing resources
+        id: check_resources
+        run: |
+          # Check if GKE cluster exists
+          if gcloud container clusters list --filter="name=${{ secrets.CLUSTER_NAME }}" --format="get(name)" | grep -q "^${{ secrets.CLUSTER_NAME }}$"; then
+            echo "GKE cluster already exists"
+            echo "cluster_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "GKE cluster does not exist"
+            echo "cluster_exists=false" >> $GITHUB_OUTPUT
+          fi
+
       # Terraform Plan
       - name: Terraform Plan
         id: plan
+        if: steps.check_resources.outputs.cluster_exists == 'false'
         run: |
           terraform plan -detailed-exitcode -out=tfplan 2>&1 | tee plan.txt
         continue-on-error: true
@@ -77,6 +91,7 @@ jobs:
       # Check Terraform Plan Status
       - name: Check Terraform Plan Status
         id: check
+        if: steps.check_resources.outputs.cluster_exists == 'false'
         run: |
           if [ "${{ steps.plan.outcome }}" = "success" ]; then
             echo "No changes required. Infrastructure is up to date."
@@ -86,12 +101,35 @@ jobs:
             echo "skip_apply=false" >> $GITHUB_OUTPUT
           fi
 
-      # Terraform Apply (only if changes detected)
+      # Terraform Apply (only if changes detected and resources don't exist)
       - name: Terraform Apply
-        if: steps.check.outputs.skip_apply == 'false'
+        if: steps.check_resources.outputs.cluster_exists == 'false' && steps.check.outputs.skip_apply == 'false'
         run: terraform apply -auto-approve tfplan
         env:
           TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_region: ${{ secrets.GCP_REGION }}
           TF_VAR_image_name: "gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest"
           TF_VAR_gcp_credentials: ${{ secrets.GCP_SA_KEY }}
+
+      # Configure kubectl
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} \
+            --region ${{ secrets.GCP_REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      # Deploy application
+      - name: Deploy to GKE
+        run: |
+          # Update the deployment with the new image
+          kubectl set image deployment/${{ secrets.DEPLOYMENT_NAME }} \
+            ${{ secrets.DEPLOYMENT_NAME }}=gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
+
+          # Wait for the deployment to complete
+          kubectl rollout status deployment/${{ secrets.DEPLOYMENT_NAME }}
+
+      # Verify deployment
+      - name: Verify deployment
+        run: |
+          kubectl get services -o wide
+          kubectl get pods -o wide
