@@ -112,17 +112,17 @@ jobs:
           TF_VAR_image_name: "gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest"
           TF_VAR_gcp_credentials: ${{ secrets.GCP_SA_KEY }}
 
-      # Configure kubectl
-      - name: Configure kubectl
-        run: |
-          gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} \
-            --region ${{ secrets.GCP_REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }}
+      # Get GKE Credentials
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ secrets.CLUSTER_NAME }}
+          location: ${{ secrets.GCP_REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       # Deploy application
       - name: Deploy to GKE
         run: |
-          # Update the deployment with the new image
           kubectl set image deployment/${{ secrets.DEPLOYMENT_NAME }} \
             ${{ secrets.DEPLOYMENT_NAME }}=gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
 
