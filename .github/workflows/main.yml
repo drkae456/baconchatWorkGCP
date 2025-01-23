@@ -125,8 +125,7 @@ jobs:
         run: |
           kubectl set image deployment/${{ secrets.DEPLOYMENT_NAME }} \
             ${{ secrets.DEPLOYMENT_NAME }}=gcr.io/${{ secrets.GCP_PROJECT_ID }}/baconchatportfolio:latest
-
-          # Wait for the deployment to complete
+          kubectl rollout restart deployment/${{ secrets.DEPLOYMENT_NAME }}
           kubectl rollout status deployment/${{ secrets.DEPLOYMENT_NAME }}
 
       # Verify deployment
